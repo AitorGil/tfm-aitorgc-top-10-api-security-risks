@@ -1,0 +1,63 @@
+spring:
+  application:
+    name: pedidos-base
+
+  # Valores por defecto para ejecutar fuera de Docker; docker-compose.yml los sobrescribe
+  datasource:
+    url: jdbc:postgresql://localhost:5432/pedidos
+    username: pedidos
+    password: pedidos-local
+
+  jpa:
+    # Flyway crea el esquema; Hibernate solo comprueba que las entidades coinciden con él
+    hibernate:
+      ddl-auto: validate
+    # Sin sesión de Hibernate abierta en los controladores: las entidades se convierten
+    # en DTO dentro de los servicios
+    open-in-view: false
+    properties:
+      # Las colecciones perezosas (como las líneas de los pedidos de una página) se cargan
+      # en lotes de hasta 50 con una sola consulta, en lugar de una consulta por pedido
+      hibernate.default_batch_fetch_size: 50
+
+  # Idioma fijo en español para los mensajes de validación y de error,
+  # sea cual sea la cabecera Accept-Language del cliente
+  web:
+    locale: es
+    locale-resolver: fixed
+
+  # Paginación: tamaño por defecto y tamaño máximo que puede pedir el cliente
+  data:
+    web:
+      pageable:
+        default-page-size: 20
+        max-page-size: 50
+
+# Errores: nunca se devuelven trazas ni mensajes internos
+server:
+  error:
+    include-stacktrace: never
+    include-message: never
+    include-binding-errors: never
+    include-exception: false
+
+# Actuator: solo /actuator/health, sin detalles
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
+
+# Configuración propia de los JWT (clase JwtProperties)
+app:
+  jwt:
+    # La clave se lee de una variable de entorno; sin ella la aplicación no arranca
+    secreto: ${JWT_SECRETO}
+    caducidad: 30m
+  # Límite de intentos de login fallidos (clase LoginProperties)
+  login:
+    max-intentos: 5
+    bloqueo: 15m

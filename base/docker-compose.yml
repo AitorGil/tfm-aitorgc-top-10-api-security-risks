@@ -1,0 +1,43 @@
+# Arranque: docker compose up --build
+# Parada:   docker compose down
+#
+# La base de datos no tiene volumen persistente: sus datos se guardan en memoria (tmpfs),
+# así que cada arranque empieza desde el estado inicial que cargan las migraciones de Flyway.
+
+# Nombre del proyecto de Docker Compose: el de la carpeta de primer nivel (base, api1-bola…).
+# Las versiones vulnerable y corregida de un caso comparten nombre, así que sus contenedores
+# no se mezclan con los de otros casos y el diff entre las dos carpetas no cambia.
+name: base
+
+services:
+  db:
+    image: postgres:18.7
+    environment:
+      POSTGRES_DB: pedidos
+      POSTGRES_USER: pedidos
+      POSTGRES_PASSWORD: pedidos-local   # Contraseña ficticia, solo para el entorno local
+    # La imagen de PostgreSQL declara un volumen en /var/lib/postgresql; con tmpfs
+    # los datos viven en memoria y desaparecen al parar el contenedor.
+    tmpfs:
+      - /var/lib/postgresql
+    # El puerto de PostgreSQL no se expone fuera de la red de Docker
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pedidos -d pedidos"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/pedidos
+      SPRING_DATASOURCE_USERNAME: pedidos
+      SPRING_DATASOURCE_PASSWORD: pedidos-local
+      # Clave ficticia para firmar los JWT (HS256 necesita al menos 32 bytes).
+      # Solo vale para el entorno local: nunca se reutiliza en un entorno real.
+      JWT_SECRETO: clave-ficticia-solo-local-0123456789-abcdefghij
+    depends_on:
+      db:
+        condition: service_healthy
